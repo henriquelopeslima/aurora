@@ -113,8 +113,9 @@ reset() { docker compose -p "aurora-pr-$1" down -v --remove-orphans >/dev/null; 
 
 teardown() {
   local pr=$1
-  cf_down "$pr"
+  # Containers primeiro: o Access leva minutos para sair da borda, e sem containers o router dá 404.
   reset "$pr"
+  cf_down "$pr"
   rm -rf "${ROOT_DIR:?}/pr-$pr"
 }
 
