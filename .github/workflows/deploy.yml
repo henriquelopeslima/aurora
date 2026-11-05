@@ -1,9 +1,11 @@
 name: Deploy
 
+# Só depois do Tests passar num push na main; workflow_dispatch continua como escape manual.
 on:
-  push:
-    branches:
-      - main
+  workflow_run:
+    workflows: [Tests]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
 
 # Um deploy por vez; o que está rodando termina (não deixa migration pela metade).
@@ -13,12 +15,18 @@ concurrency:
 
 env:
   REGISTRY: southamerica-east1-docker.pkg.dev/aurora-513810/aurora
+  # No workflow_run, GITHUB_SHA é a ponta atual da main, não o commit que foi testado.
+  SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
 
 jobs:
   deploy:
     name: Build and deploy to GCP
     # A infra existe só no fork pessoal; no repositório oficial este job nunca roda.
-    if: github.repository == 'henriquelopeslima/aurora'
+    # event == 'push' barra PR de fork com branch chamada main, que também casa com o filtro acima.
+    if: >-
+      github.repository == 'henriquelopeslima/aurora' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -26,6 +34,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
+        with:
+          ref: ${{ env.SHA }}
 
       - name: Authenticate to GCP (Workload Identity Federation)
         uses: google-github-actions/auth@v3
@@ -41,11 +51,11 @@ jobs:
         run: |
           gcloud auth configure-docker southamerica-east1-docker.pkg.dev --quiet
           for target in php nginx; do
-            docker build -f docker/prod/Dockerfile --target "$target" -t "$REGISTRY/$target:$GITHUB_SHA" .
-            docker push "$REGISTRY/$target:$GITHUB_SHA"
+            docker build -f docker/prod/Dockerfile --target "$target" -t "$REGISTRY/$target:$SHA" .
+            docker push "$REGISTRY/$target:$SHA"
           done
 
       - name: Deploy to the VM
         run: |
           gcloud compute ssh aurora --zone southamerica-east1-a --tunnel-through-iap --quiet \
-            --command "sudo aurora-deploy $GITHUB_SHA"
+            --command "sudo aurora-deploy $SHA"
