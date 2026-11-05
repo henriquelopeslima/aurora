@@ -22,3 +22,12 @@ when@test:
         test: true
         session:
             storage_factory_id: session.storage.factory.mock_file
+
+when@prod:
+    parameters:
+        env(TRUSTED_PROXIES): ''
+    framework:
+        # Atrás do Cloudflare Tunnel: sem isso URLs absolutas (redirects, link de confirmação
+        # por e-mail) sairiam com http://. Valor vem do ambiente (infra/vm/compose.yaml).
+        trusted_proxies: '%env(TRUSTED_PROXIES)%'
+        trusted_headers: ['x-forwarded-for', 'x-forwarded-proto', 'x-forwarded-host']

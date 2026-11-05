@@ -43,3 +43,13 @@ when@test:
 
             info_log:
                 path: '%kernel.logs_dir%/tests/info.log'
+
+when@prod:
+    monolog:
+        handlers:
+            # stderr do php-fpm vai para o log do container (Cloud Logging na VM).
+            stderr:
+                type: stream
+                path: php://stderr
+                level: info
+                channels: ["!event"]
