@@ -92,6 +92,9 @@ control_panel: Panel de control
 completed: Finalizado
 cover_image: Imagen de portada
 copy_id: Copiar ID
+copy_success: ID copiado con éxito
+copy_error: Error al copiar ID
+copy_again: Error al copiar ID. Tente nuevamente.
 cpf: CPF
 cnpj: CNPJ (MEI)
 create: Crear
@@ -884,3 +887,10 @@ view:
     error-text_third: Pero no te preocupes, hay muchas otras páginas por descubrir aquí en Maps.
     error-homepage: Volver a la página de inicio
     error-image: Imagen de duda
+sunday: Domingo
+monday: Lunes
+tuesday: Martes
+wednesday: Miércoles
+thursday: Jueves
+friday: Viernes
+saturday: Sábado

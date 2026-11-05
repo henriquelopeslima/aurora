@@ -92,6 +92,9 @@ control_panel: Control Panel
 completed: Completed
 cover_image: Cover image
 copy_id: Copy ID
+copy_success: Copied to clipboard
+copy_error: Error copying to clipboard
+copy_again: Failed to copy ID. Try again.
 cpf: CPF
 cnpj: CNPJ (MEI)
 create: Create
@@ -881,3 +884,10 @@ view:
     error-text_third: But don't worry, there are many other pages to discover here at Aurora.
     error-homepage: Back to home page
     error-image: Doubt image
+sunday: Sunday
+monday: Monday
+tuesday: Tuesday
+wednesday: Wednesday
+thursday: Thursday
+friday: Friday
+saturday: Saturday
