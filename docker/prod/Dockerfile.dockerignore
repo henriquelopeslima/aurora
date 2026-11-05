@@ -1,0 +1,26 @@
+# Ignore só da build de produção (BuildKit lê <Dockerfile>.dockerignore).
+.git
+.agents
+.claude
+.superpowers
+vendor
+node_modules
+var
+tmp
+farol
+cypress
+tests
+docs
+infra
+coverage*
+xdebug.log
+.php-cs-fixer.cache
+.phpcs-cache
+.env
+.env.local
+.env.*.local
+config/jwt/*.pem
+assets/uploads
+assets/vendor
+public/assets
+storage
