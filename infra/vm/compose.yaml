@@ -1,0 +1,76 @@
+# Compose de produção. Entregue à VM pela metadata (infra/vm.tf) e usado pelo deploy.sh:
+#   docker compose --env-file app.env -f compose.yaml up -d
+# Do ambiente: REGISTRY, TAG, DATA_DIR. Do app.env: os segredos, cada serviço recebe só os seus.
+
+services:
+  php:
+    image: ${REGISTRY}/php:${TAG}
+    restart: unless-stopped
+    environment:
+      APP_ENV: prod
+      APP_DEBUG: "0"
+      APP_SECRET: ${APP_SECRET}
+      MAILER_DSN: ${MAILER_DSN}
+      DATABASE_URL: postgresql://aurora:${POSTGRES_PASSWORD}@postgres:5432/aurora?serverVersion=16&charset=utf8
+      MONGODB_URL: mongodb://root:${MONGO_PASSWORD}@mongo:27017
+      MONGODB_DB: aurora
+      JWT_PASSPHRASE: ""
+      STORAGE_IMAGES_BASE_URL: https://aurora.henriquelopeslima.dev.br/uploads
+      STORAGE_BASE_URL: https://aurora.henriquelopeslima.dev.br/storage
+      CORS_ALLOW_ORIGIN: '^https://aurora\.henriquelopeslima\.dev\.br$$'
+      EMAIL_ADDRESS: no-reply@aurora.henriquelopeslima.dev.br
+      # O nginx recebe do cloudflared, numa rede privada do Docker.
+      TRUSTED_PROXIES: 127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
+    volumes:
+      - ${DATA_DIR:-/mnt/data}/uploads:/var/www/assets/uploads
+      - ${DATA_DIR:-/mnt/data}/storage:/var/www/storage
+      - ./jwt:/var/www/config/jwt:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+
+  nginx:
+    image: ${REGISTRY}/nginx:${TAG}
+    restart: unless-stopped
+    volumes:
+      - ${DATA_DIR:-/mnt/data}/uploads:/var/www/assets/uploads:ro
+    depends_on: [php]
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: aurora
+      POSTGRES_DB: aurora
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ${DATA_DIR:-/mnt/data}/postgres:/var/lib/postgresql/data
+    # Por TCP: o servidor temporário do primeiro boot só escuta no socket.
+    healthcheck:
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "aurora"]
+      interval: 3s
+      retries: 40
+
+  mongo:
+    image: mongo:7.0
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
+    volumes:
+      - ${DATA_DIR:-/mnt/data}/mongo:/data/db
+    # Pelo IP do container: o mongod temporário do primeiro boot só escuta em 127.0.0.1.
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --host \"$$(hostname -i)\" --eval 'db.adminCommand(\"ping\").ok' | grep -q 1"]
+      interval: 3s
+      retries: 40
+
+  cloudflared:
+    image: cloudflare/cloudflared:2026.10.1
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN}
+    depends_on: [nginx]
