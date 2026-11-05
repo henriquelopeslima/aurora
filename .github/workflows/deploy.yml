@@ -23,10 +23,13 @@ jobs:
     name: Build and deploy to GCP
     # A infra existe só no fork pessoal; no repositório oficial este job nunca roda.
     # event == 'push' barra PR de fork com branch chamada main, que também casa com o filtro acima.
+    # head_sha == github.sha (a ponta atual da main): Tests que termina fora de ordem, ou o re-run
+    # de um Tests antigo, não faz deploy de um commit velho por cima do novo.
     if: >-
       github.repository == 'henriquelopeslima/aurora' &&
       (github.event_name == 'workflow_dispatch' ||
-       (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'))
+       (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.head_sha == github.sha))
     runs-on: ubuntu-latest
     permissions:
       contents: read
