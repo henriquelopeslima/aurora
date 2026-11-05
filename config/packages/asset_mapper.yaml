@@ -1,3 +1,6 @@
 framework:
     asset_mapper:
         paths: ['assets/']
+        # Uploads chegam depois do asset-map:compile: fora do mapper, asset() devolve /uploads/..., servido pelo nginx.
+        # Sem "assets/" no padrão: o caminho salvo começa com "/" e o mapper procura em "assets//uploads/...".
+        excluded_patterns: ['*/uploads/*']
