@@ -57,7 +57,7 @@ variable "resend_dkim" {
 }
 
 variable "resend_region" {
-  description = "Região do Resend; compõe o MX de retorno (feedback-smtp.<região>.amazonses.com)."
+  description = "Região do Resend no CNAME de retorno (rsend-<região>.forge.rmta.net); sae1 = São Paulo."
   type        = string
-  default     = "us-east-1"
+  default     = "sae1"
 }

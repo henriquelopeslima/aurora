@@ -39,6 +39,14 @@ gcloud storage buckets update gs://aurora-513810-tfstate --versioning
 
 Depois, em `infra/`, copie `terraform.tfvars.example` para `terraform.tfvars` e preencha: IDs de conta e zona da Cloudflare, a API key do Resend e o valor DKIM que o Resend mostra para `resend._domainkey`.
 
+Se o Resend já criou os registros DNS sozinho (integração automática com a Cloudflare), adote-os no state antes do primeiro apply, senão a criação falha por registro duplicado (IDs em `GET /zones/<zona>/dns_records`):
+
+```bash
+tofu import cloudflare_dns_record.resend_send  <zona>/<id do CNAME send.aurora>
+tofu import cloudflare_dns_record.resend_rsend <zona>/<id do CNAME rsend.aurora>
+tofu import cloudflare_dns_record.resend_dkim  <zona>/<id do TXT resend._domainkey.aurora>
+```
+
 ## Subida
 
 ```bash

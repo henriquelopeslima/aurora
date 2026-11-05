@@ -38,23 +38,25 @@ resource "cloudflare_dns_record" "app" {
 }
 
 # Domínio de envio do Resend = o próprio subdomínio da app, para não tocar e-mail da raiz.
-resource "cloudflare_dns_record" "resend_mx" {
-  zone_id  = var.cloudflare_zone_id
-  name     = "send.${var.domain}"
-  type     = "MX"
-  content  = "feedback-smtp.${var.resend_region}.amazonses.com"
-  priority = 10
-  ttl      = 1
-  comment  = "aurora - Resend (bounce)"
-}
-
-resource "cloudflare_dns_record" "resend_spf" {
+# Registros que o Resend pede para o domínio (painel do Resend > Domains).
+resource "cloudflare_dns_record" "resend_send" {
   zone_id = var.cloudflare_zone_id
   name    = "send.${var.domain}"
-  type    = "TXT"
-  content = "\"v=spf1 include:amazonses.com ~all\""
+  type    = "CNAME"
+  content = "send.forge.rmta.net"
+  proxied = false
   ttl     = 1
-  comment = "aurora - Resend (SPF)"
+  comment = "aurora - Resend (envio)"
+}
+
+resource "cloudflare_dns_record" "resend_rsend" {
+  zone_id = var.cloudflare_zone_id
+  name    = "rsend.${var.domain}"
+  type    = "CNAME"
+  content = "rsend-${var.resend_region}.forge.rmta.net"
+  proxied = false
+  ttl     = 1
+  comment = "aurora - Resend (retorno)"
 }
 
 resource "cloudflare_dns_record" "resend_dkim" {
