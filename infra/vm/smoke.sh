@@ -76,6 +76,15 @@ case "$redirect" in
   *) fail "redirect atrás do proxy: '$redirect'" ;;
 esac
 
+redirect=$(curl -s -o /dev/null -w '%{redirect_url}' -H "Host: $DOMAIN" -H 'X-Forwarded-Proto: https' -H 'X-Forwarded-Host: evil.example' "$URL/painel")
+case "$redirect" in
+  "https://$DOMAIN/"*) ok "X-Forwarded-Host do cliente é ignorado ($redirect)" ;;
+  *) fail "X-Forwarded-Host do cliente mudou o host: '$redirect'" ;;
+esac
+
+plain=$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' -H "Host: $DOMAIN" -H 'X-Forwarded-Proto: http' "$URL/login")
+[ "$plain" = "301 https://$DOMAIN/login" ] && ok "acesso por http redireciona para https" || fail "acesso por http: '$plain'"
+
 dc logs php 2>&1 | grep -q 'request\.' && ok "monolog escreve no stderr" || fail "nenhum log do monolog no stderr do php"
 
 docker run --rm -v "$DATA_DIR/uploads:/u" alpine:3.20 sh -c 'echo ok > /u/smoke.txt'
