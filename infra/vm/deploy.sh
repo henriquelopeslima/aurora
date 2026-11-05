@@ -33,11 +33,14 @@ MAILER_DSN=$mailer_dsn
 TUNNEL_TOKEN=$tunnel_token
 EOF
 
-secret aurora-jwt-private-key > "$APP/jwt/private.pem"
-secret aurora-jwt-public-key > "$APP/jwt/public.pem"
+# Arquivo novo + mv: o php em execução monta ./jwt, e um fetch falho não pode esvaziar a chave.
+secret aurora-jwt-private-key > "$APP/jwt/private.pem.new"
+secret aurora-jwt-public-key > "$APP/jwt/public.pem.new"
 chgrp -R 33 "$APP/jwt"   # www-data da imagem php lê as chaves
 chmod 0750 "$APP/jwt"
-chmod 0640 "$APP/jwt/"*.pem
+chmod 0640 "$APP/jwt/"*.new
+mv -f "$APP/jwt/private.pem.new" "$APP/jwt/private.pem"
+mv -f "$APP/jwt/public.pem.new" "$APP/jwt/public.pem"
 
 gcloud auth configure-docker "${REGISTRY%%/*}" --quiet >/dev/null 2>&1
 
@@ -60,4 +63,9 @@ console doctrine:mongodb:schema:update
 console app:mongo:migrations:execute
 
 echo "$TAG" > "$DATA/image_tag"
+
+# Versões antigas encheriam o disco de boot; rollback puxa de novo do registry.
+# Falhar aqui não desfaz um deploy que já deu certo.
+docker image prune -af >/dev/null || echo "aviso: docker image prune falhou" >&2
+
 echo "deploy ok: $TAG"
