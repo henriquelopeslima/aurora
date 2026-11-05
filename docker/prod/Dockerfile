@@ -47,3 +47,13 @@ FROM nginx:1.27-alpine AS nginx
 
 COPY --from=php /var/www/public /var/www/public
 COPY docker/prod/nginx.conf /etc/nginx/conf.d/default.conf
+
+
+# Previews por PR: dev deps só para as fixtures (exec -e APP_ENV=dev); o site continua em APP_ENV=prod.
+FROM php AS preview
+
+USER root
+RUN composer install --no-scripts --no-interaction --prefer-dist \
+    && composer dump-autoload --optimize \
+    && chown -R www-data:www-data var
+USER www-data
