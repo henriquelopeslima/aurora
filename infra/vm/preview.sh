@@ -72,6 +72,19 @@ cf_up() {
       '{type: "CNAME", name: $h, content: $t, proxied: true, ttl: 1, comment: $c}')
     cf POST "/zones/$CF_ZONE/dns_records" --data "$body" >/dev/null
   fi
+
+  # Um app novo leva ~1 min para valer na borda: os containers só sobem depois do redirect do Access.
+  # --resolve pelo IP do host de prod (mesma borda): evita o cache negativo do DNS do host recém-criado.
+  local edge i
+  edge=$(getent ahostsv4 "aurora.$DOMAIN" | awk 'NR == 1 {print $1}')
+  for i in $(seq 36); do
+    case "$(curl -s -o /dev/null -w '%{redirect_url}' --resolve "$host:443:$edge" "https://$host/")" in
+      https://*.cloudflareaccess.com/*) return 0 ;;
+    esac
+    sleep 5
+  done
+  echo "o Access não protegeu $host em 180s; o preview não subiu" >&2
+  return 1
 }
 
 # Ordem inversa do cf_up: o CNAME sai antes do app do Access. Recurso inexistente não é erro.
