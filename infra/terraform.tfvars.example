@@ -1,0 +1,5 @@
+# Copie para terraform.tfvars (não versionado) e preencha.
+cloudflare_account_id = "id-da-conta-cloudflare"
+cloudflare_zone_id    = "id-da-zona-henriquelopeslima.dev.br"
+resend_api_key        = "re_..."
+resend_dkim           = "p=MIGfMA0G..."
