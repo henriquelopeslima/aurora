@@ -15,6 +15,7 @@ resource "google_iam_workload_identity_pool_provider" "github" {
     "google.subject"       = "assertion.sub"
     "attribute.repository" = "assertion.repository"
     "attribute.ref"        = "assertion.ref"
+    "attribute.event_name" = "assertion.event_name"
   }
   # Token de qualquer outro repositório é recusado já na troca.
   attribute_condition = "assertion.repository == '${var.github_repository}'"
@@ -36,6 +37,14 @@ resource "google_service_account_iam_member" "deploy_wif" {
   service_account_id = google_service_account.deploy.name
   role               = "roles/iam.workloadIdentityUser"
   member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github.name}/attribute.ref/refs/heads/main"
+}
+
+# Previews: workflows de pull_request também assumem a conta. O repo já é filtrado pela
+# attribute_condition, e PR vindo de fork não recebe token OIDC.
+resource "google_service_account_iam_member" "deploy_wif_pr" {
+  service_account_id = google_service_account.deploy.name
+  role               = "roles/iam.workloadIdentityUser"
+  member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github.name}/attribute.event_name/pull_request"
 }
 
 resource "google_artifact_registry_repository_iam_member" "deploy_writer" {
