@@ -30,4 +30,6 @@ when@prod:
         # Atrás do Cloudflare Tunnel: sem isso URLs absolutas (redirects, link de confirmação
         # por e-mail) sairiam com http://. Valor vem do ambiente (infra/vm/compose.yaml).
         trusted_proxies: '%env(TRUSTED_PROXIES)%'
-        trusted_headers: ['x-forwarded-for', 'x-forwarded-proto', 'x-forwarded-host']
+        # Sem x-forwarded-host: o cloudflared preserva o Host original, e confiar no header
+        # deixaria o cliente escolher o host dos links de reset de senha.
+        trusted_headers: ['x-forwarded-for', 'x-forwarded-proto']
