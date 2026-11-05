@@ -19,8 +19,14 @@ fi
 for _ in $(seq 30); do [ -e "$DEVICE" ] && break; sleep 1; done
 
 # Nunca formata um disco que já tem filesystem: é nele que moram os dados.
-if ! blkid "$DEVICE" >/dev/null 2>&1; then
+# Só blkid rc=2 (nenhuma assinatura) formata; qualquer outro erro (ex.: 8, ambíguo) para tudo.
+rc=0
+blkid -p "$DEVICE" >/dev/null 2>&1 || rc=$?
+if [ "$rc" = 2 ]; then
   mkfs.ext4 -m 0 -F "$DEVICE"
+elif [ "$rc" != 0 ]; then
+  echo "blkid rc=$rc em $DEVICE: não formato nem monto; investigue o disco" >&2
+  exit 1
 fi
 
 mkdir -p "$DATA"
