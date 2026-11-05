@@ -61,3 +61,21 @@ variable "resend_region" {
   type        = string
   default     = "sae1"
 }
+
+variable "preview_cloudflare_token" {
+  description = "Token restrito dos previews (Zone > DNS > Edit na zona, Account > Access: Apps and Policies > Edit). Vai para o Secret Manager e é usado pela VM."
+  type        = string
+  sensitive   = true
+}
+
+variable "preview_max" {
+  description = "Máximo de previews no ar ao mesmo tempo (RAM da VM)."
+  type        = number
+  default     = 2
+}
+
+variable "preview_allowed_emails" {
+  description = "E-mails que passam pelo Cloudflare Access dos previews."
+  type        = list(string)
+  default     = ["henriquelopeslima.hll@gmail.com"]
+}

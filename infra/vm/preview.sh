@@ -29,8 +29,62 @@ esac
 exec 9>"$LOCK"
 flock 9
 
-cf_up() { [ "${PREVIEW_CF:-1}" = 0 ] && return 0; :; }
-cf_down() { [ "${PREVIEW_CF:-1}" = 0 ] && return 0; :; }
+# Cloudflare: o token fica no Secret Manager e os ids na metadata (infra/preview.tf).
+cf_init() {
+  [ -n "${CF_TOKEN:-}" ] && return 0
+  CF_TOKEN=$(gcloud secrets versions access latest --secret=aurora-preview-cf-token)
+  CF_ACC=$(md aurora-cf-account)
+  CF_ZONE=$(md aurora-cf-zone)
+}
+
+# O token vai por process substitution, fora da linha de comando (ps). Erro: corpo da resposta no stderr.
+cf() {
+  local method=$1 path=$2 out
+  shift 2
+  out=$(curl -sS --fail-with-body -X "$method" -H @<(printf 'Authorization: Bearer %s\n' "$CF_TOKEN") \
+    -H 'Content-Type: application/json' "https://api.cloudflare.com/client/v4$path" "$@") \
+    || { echo "cloudflare $method $path: $out" >&2; return 1; }
+  printf '%s' "$out"
+}
+
+app_ids() { cf GET "/accounts/$CF_ACC/access/apps" | jq -r --arg h "$1" '.result[] | select(.domain == $h) | .id'; }
+dns_ids() { cf GET "/zones/$CF_ZONE/dns_records?type=CNAME&name=$1" | jq -r '.result[].id'; }
+
+# Idempotente: o app do Access entra antes do CNAME, então o host nunca fica público sem login.
+cf_up() {
+  [ "${PREVIEW_CF:-1}" = 0 ] && return 0
+  local pr=$1 host="pr-$1-aurora.$DOMAIN" ids body policy tunnel
+  cf_init
+
+  ids=$(app_ids "$host")
+  if [ -z "$ids" ]; then
+    policy=$(md aurora-preview-policy)
+    body=$(jq -n --arg h "$host" --arg n "aurora preview pr-$pr" --arg p "$policy" \
+      '{name: $n, type: "self_hosted", domain: $h, destinations: [{type: "public", uri: $h}],
+        policies: [{id: $p, precedence: 1}], session_duration: "24h"}')
+    cf POST "/accounts/$CF_ACC/access/apps" --data "$body" >/dev/null
+  fi
+
+  ids=$(dns_ids "$host")
+  if [ -z "$ids" ]; then
+    tunnel=$(md aurora-tunnel-cname)
+    body=$(jq -n --arg h "$host" --arg t "$tunnel" --arg c "aurora preview (PR #$pr)" \
+      '{type: "CNAME", name: $h, content: $t, proxied: true, ttl: 1, comment: $c}')
+    cf POST "/zones/$CF_ZONE/dns_records" --data "$body" >/dev/null
+  fi
+}
+
+# Ordem inversa do cf_up: o CNAME sai antes do app do Access. Recurso inexistente não é erro.
+cf_down() {
+  [ "${PREVIEW_CF:-1}" = 0 ] && return 0
+  local host="pr-$1-aurora.$DOMAIN" ids id
+  cf_init
+
+  ids=$(dns_ids "$host")
+  for id in $ids; do cf DELETE "/zones/$CF_ZONE/dns_records/$id" >/dev/null; done
+  ids=$(app_ids "$host")
+  for id in $ids; do cf DELETE "/accounts/$CF_ACC/access/apps/$id" >/dev/null; done
+}
 
 prune() {
   [ "${PREVIEW_PRUNE:-1}" = 0 ] && return 0

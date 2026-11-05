@@ -8,6 +8,8 @@ DATA=/mnt/data
 if ! command -v docker >/dev/null 2>&1; then
   curl -fsSL https://get.docker.com | sh
 fi
+# aurora-preview fala com a API da Cloudflare via jq.
+command -v jq >/dev/null || { apt-get update -qq && apt-get install -y -qq jq; }
 
 # Logs dos containers no Cloud Logging.
 want='{"log-driver":"gcplogs"}'
@@ -39,16 +41,18 @@ chown 70:70 "$DATA/postgres"                  # postgres:16-alpine
 chown 999:999 "$DATA/mongo"                   # mongo:7.0
 chown 33:33 "$DATA/uploads" "$DATA/storage"   # www-data da imagem php
 
-# deploy.sh vem sempre fresco da metadata, para um `tofu apply` valer sem reboot.
-cat > /usr/local/bin/aurora-deploy <<'EOF'
+# deploy.sh e preview.sh vêm sempre frescos da metadata, para um `tofu apply` valer sem reboot.
+for name in aurora-deploy aurora-preview; do
+  cat > "/usr/local/bin/$name" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
-f=$(mktemp)
-curl -fsS -H 'Metadata-Flavor: Google' \
-  http://metadata.google.internal/computeMetadata/v1/instance/attributes/aurora-deploy > "$f"
-exec bash "$f" "$@"
+f=\$(mktemp)
+curl -fsS -H 'Metadata-Flavor: Google' \\
+  http://metadata.google.internal/computeMetadata/v1/instance/attributes/$name > "\$f"
+exec bash "\$f" "\$@"
 EOF
-chmod 0755 /usr/local/bin/aurora-deploy
+  chmod 0755 "/usr/local/bin/$name"
+done
 
 # VM recriada ou reiniciada volta sozinha na última versão deployada com sucesso.
 if [ -s "$DATA/image_tag" ]; then

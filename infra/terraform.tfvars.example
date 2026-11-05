@@ -3,3 +3,5 @@ cloudflare_account_id = "id-da-conta-cloudflare"
 cloudflare_zone_id    = "id-da-zona-henriquelopeslima.dev.br"
 resend_api_key        = "re_..."
 resend_dkim           = "p=MIGfMA0G..."
+# Token restrito dos previews: Zone > DNS > Edit (zona) e Account > Access: Apps and Policies > Edit.
+preview_cloudflare_token = "..."

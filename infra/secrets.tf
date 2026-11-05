@@ -30,6 +30,7 @@ locals {
     "aurora-tunnel-token"      = data.cloudflare_zero_trust_tunnel_cloudflared_token.aurora.token
     "aurora-jwt-private-key"   = tls_private_key.jwt.private_key_pem
     "aurora-jwt-public-key"    = tls_private_key.jwt.public_key_pem
+    "aurora-preview-cf-token"  = var.preview_cloudflare_token
   }
 }
 
@@ -44,6 +45,7 @@ locals {
     "aurora-tunnel-token",
     "aurora-jwt-private-key",
     "aurora-jwt-public-key",
+    "aurora-preview-cf-token",
   ])
 }
 

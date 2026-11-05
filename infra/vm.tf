@@ -100,14 +100,14 @@ resource "google_compute_instance" "aurora" {
     scopes = ["cloud-platform"]
   }
 
-  metadata = {
+  metadata = merge({
     enable-oslogin     = "TRUE"
     startup-script     = file("${path.module}/vm/startup.sh")
     aurora-deploy      = file("${path.module}/vm/deploy.sh")
     aurora-compose     = file("${path.module}/vm/compose.yaml")
     aurora-router-conf = file("${path.module}/vm/router.conf")
     aurora-registry    = local.registry
-  }
+  }, local.preview_metadata)
 
   allow_stopping_for_update = true
 
