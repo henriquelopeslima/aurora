@@ -30,7 +30,8 @@ docker build -q -f "$ROOT/docker/prod/Dockerfile" --target php -t "$REGISTRY/php
 docker build -q -f "$ROOT/docker/prod/Dockerfile" --target nginx -t "$REGISTRY/nginx:$TAG" "$ROOT"
 
 echo "== up =="
-cp "$ROOT/infra/vm/compose.yaml" "$TMP/compose.yaml"
+cp "$ROOT/infra/vm/compose.yaml" "$ROOT/infra/vm/router.conf" "$TMP/"
+docker network inspect edge >/dev/null 2>&1 || docker network create edge >/dev/null
 cat > "$TMP/ports.yaml" <<'EOF'
 services:
   nginx:
@@ -50,7 +51,7 @@ chmod 0644 "$TMP/jwt/"*.pem
 mkdir -p "$DATA_DIR"/{postgres,mongo,uploads,storage}
 docker run --rm -v "$DATA_DIR:/d" alpine:3.20 chown 33:33 /d/uploads /d/storage
 
-dc up -d php nginx postgres mongo
+dc up -d php nginx postgres mongo router
 
 for _ in $(seq 60); do
   [ "$(code "$URL/login")" != 000 ] && console about >/dev/null 2>&1 && break
@@ -66,6 +67,13 @@ echo "== asserts =="
 [ "$(code "$URL/")" = 200 ] && ok "home 200" || fail "home: $(code "$URL/")"
 [ "$(code "$URL/cadastro")" = 200 ] && ok "/cadastro 200" || fail "/cadastro: $(code "$URL/cadastro")"
 [ "$(code "$URL/login")" = 200 ] && ok "/login 200" || fail "/login: $(code "$URL/login")"
+
+edge() { docker run --rm --network edge curlimages/curl:8.10.1 -s -o /dev/null -w '%{http_code}' "$@"; }
+[ "$(edge http://aurora-smoke-nginx-1/login)" = 200 ] && ok "nginx alcançável pela rede edge" || fail "rede edge"
+[ "$(edge -H 'Host: pr-1-aurora.henriquelopeslima.dev.br' http://aurora-smoke-router-1/)" = 404 ] \
+  && ok "router: PR sem preview dá 404" || fail "router PR sem preview"
+[ "$(edge -H 'Host: evil.example' http://aurora-smoke-router-1/)" = 404 ] \
+  && ok "router: host estranho dá 404" || fail "router host estranho"
 
 asset=$(curl -s "$URL/" | grep -o '/assets/[^"]*\.css' | head -1)
 [ -n "$asset" ] && [ "$(code "$URL$asset")" = 200 ] && ok "asset compilado $asset 200" || fail "asset compilado: '${asset}'"

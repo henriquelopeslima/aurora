@@ -101,11 +101,12 @@ resource "google_compute_instance" "aurora" {
   }
 
   metadata = {
-    enable-oslogin  = "TRUE"
-    startup-script  = file("${path.module}/vm/startup.sh")
-    aurora-deploy   = file("${path.module}/vm/deploy.sh")
-    aurora-compose  = file("${path.module}/vm/compose.yaml")
-    aurora-registry = local.registry
+    enable-oslogin     = "TRUE"
+    startup-script     = file("${path.module}/vm/startup.sh")
+    aurora-deploy      = file("${path.module}/vm/deploy.sh")
+    aurora-compose     = file("${path.module}/vm/compose.yaml")
+    aurora-router-conf = file("${path.module}/vm/router.conf")
+    aurora-registry    = local.registry
   }
 
   allow_stopping_for_update = true

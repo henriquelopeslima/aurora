@@ -18,6 +18,7 @@ umask 077
 
 REGISTRY=$(md aurora-registry)
 md aurora-compose > "$APP/compose.yaml"
+md aurora-router-conf > "$APP/router.conf"
 
 # Atribuições soltas: com set -e, uma falha aqui aborta (dentro de echo não abortaria).
 app_secret=$(secret aurora-app-secret)
@@ -48,6 +49,7 @@ export REGISTRY TAG DATA_DIR="$DATA"
 dc() { docker compose -p aurora --env-file "$APP/app.env" -f "$APP/compose.yaml" "$@"; }
 console() { dc exec -T php php bin/console "$@"; }
 
+docker network inspect edge >/dev/null 2>&1 || docker network create edge >/dev/null
 dc pull --quiet
 dc up -d --remove-orphans
 

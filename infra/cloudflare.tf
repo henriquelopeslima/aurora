@@ -13,10 +13,12 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "aurora" {
     ingress = [
       {
         hostname = var.domain
-        service  = "http://nginx:80" # serviço do compose (infra/vm/compose.yaml)
+        # Nome do container, não do serviço: na rede edge, "nginx" também resolve para os previews.
+        service = "http://aurora-nginx-1:80"
       },
       {
-        service = "http_status:404"
+        # Todo o resto (os previews pr-<n>-aurora.*) vai para o roteador (infra/vm/router.conf).
+        service = "http://aurora-router-1:80"
       },
     ]
   }

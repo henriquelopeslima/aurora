@@ -37,6 +37,16 @@ services:
     volumes:
       - ${DATA_DIR:-/mnt/data}/uploads:/var/www/assets/uploads:ro
     depends_on: [php]
+    networks: [default, edge]
+
+  # Repassa pr-<n>-aurora.* ao nginx do preview (infra/vm/router.conf, gravado pelo deploy.sh).
+  router:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    mem_limit: 32m
+    volumes:
+      - ./router.conf:/etc/nginx/conf.d/default.conf:ro
+    networks: [edge]
 
   postgres:
     image: postgres:16-alpine
@@ -74,3 +84,10 @@ services:
     environment:
       TUNNEL_TOKEN: ${TUNNEL_TOKEN}
     depends_on: [nginx]
+    networks: [edge]
+
+# Rede compartilhada com os previews. Só nginx, router e cloudflared entram nela,
+# para que php/postgres/mongo nunca resolvam para containers de outro projeto.
+networks:
+  edge:
+    external: true
