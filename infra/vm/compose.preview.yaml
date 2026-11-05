@@ -1,0 +1,87 @@
+# Compose de um preview por PR. Entregue à VM pela metadata (infra/vm.tf) e usado pelo aurora-preview
+# (infra/vm/preview.sh) como projeto aurora-pr-<n>. Dados em volumes nomeados, apagados a cada up.
+# Do ambiente: REGISTRY, TAG, PR, APP_HOST. Do app.env: APP_SECRET, POSTGRES_PASSWORD, MONGO_PASSWORD.
+
+services:
+  php:
+    image: ${REGISTRY}/php-preview:${TAG}
+    restart: unless-stopped
+    mem_limit: 384m
+    environment:
+      APP_ENV: prod
+      APP_DEBUG: "0"
+      APP_SECRET: ${APP_SECRET}
+      MAILER_DSN: null://null
+      DATABASE_URL: postgresql://aurora:${POSTGRES_PASSWORD}@postgres:5432/aurora?serverVersion=16&charset=utf8
+      MONGODB_URL: mongodb://root:${MONGO_PASSWORD}@mongo:27017
+      MONGODB_DB: aurora
+      JWT_PASSPHRASE: ""
+      STORAGE_IMAGES_BASE_URL: https://${APP_HOST}/uploads
+      STORAGE_BASE_URL: https://${APP_HOST}/storage
+      CORS_ALLOW_ORIGIN: '^https://pr-${PR}-aurora\.henriquelopeslima\.dev\.br$$'
+      EMAIL_ADDRESS: no-reply@aurora.henriquelopeslima.dev.br
+      # O nginx recebe do router, numa rede privada do Docker.
+      TRUSTED_PROXIES: 127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
+    volumes:
+      - uploads:/var/www/assets/uploads
+      - storage:/var/www/storage
+      - ./jwt:/var/www/config/jwt:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+
+  nginx:
+    image: ${REGISTRY}/nginx:${TAG}
+    restart: unless-stopped
+    mem_limit: 32m
+    volumes:
+      - uploads:/var/www/assets/uploads:ro
+    # O php monta o volume primeiro, e assim ele herda o dono www-data da imagem.
+    depends_on: [php]
+    # Só o nginx entra na edge, com o alias que o router procura (pr-<n>).
+    networks:
+      default: {}
+      edge:
+        aliases: ["pr-${PR}"]
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    mem_limit: 192m
+    environment:
+      POSTGRES_USER: aurora
+      POSTGRES_DB: aurora
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "aurora"]
+      interval: 3s
+      retries: 40
+
+  mongo:
+    image: mongo:7.0
+    restart: unless-stopped
+    mem_limit: 384m
+    command: ["--wiredTigerCacheSizeGB", "0.25"]
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
+    volumes:
+      - mongo:/data/db
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --host \"$$(hostname -i)\" --eval 'db.adminCommand(\"ping\").ok' | grep -q 1"]
+      interval: 3s
+      retries: 40
+
+volumes:
+  uploads: {}
+  storage: {}
+  postgres: {}
+  mongo: {}
+
+networks:
+  edge:
+    external: true
