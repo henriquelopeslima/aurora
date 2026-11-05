@@ -24,3 +24,10 @@ assets/uploads
 assets/vendor
 public/assets
 storage
+# Credencial que o google-github-actions/auth grava na raiz do workspace do CI.
+gha-creds-*.json
+docker-compose.override.yml
+config/secrets/prod/prod.decrypt.private.php
+config/environment/aurora.local.yaml
+config/environment/aurora.prod.yaml
+.github
