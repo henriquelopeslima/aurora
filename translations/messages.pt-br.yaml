@@ -92,6 +92,9 @@ completed: Finalizados
 coming_soon: Em breve
 cover_image: Imagem de capa
 copy_id: Copiar ID
+copy_success: ID copiado com sucesso
+copy_error: Erro ao copiar ID
+copy_again: Erro ao copiar ID. Tente novamente
 cpf: CPF
 cnpj: CNPJ (MEI)
 configure: Configurar
@@ -876,3 +879,10 @@ view:
     error-text_third: Mas não se preocupe, existem muitas outras páginas para conhecer aqui na Aurora.
     error-homepage: Voltar para a página inicial
     error-image: Imagem de dúvida
+sunday: Domingo
+monday: Segunda-feira
+tuesday: Terça-feira
+wednesday: Quarta-feira
+thursday: Quinta-feira
+friday: Sexta-feira
+saturday: Sábado
