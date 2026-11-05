@@ -28,6 +28,9 @@ esac
 # Mesmo lock do deploy de prod: serializa os dois, e o prune do prod não apaga uma imagem recém-puxada.
 exec 9>"$LOCK"
 flock 9
+# ssh sem tty: um job cancelado não manda sinal. Escrever na sessão logo após o lock faz um
+# cliente que já foi embora derrubar o script (SIGPIPE) antes de criar qualquer estado.
+echo "aurora-preview $cmd: lock adquirido" >&2
 
 # Cloudflare: o token fica no Secret Manager e os ids na metadata (infra/preview.tf).
 cf_init() {

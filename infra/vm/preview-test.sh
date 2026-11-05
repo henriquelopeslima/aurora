@@ -88,6 +88,11 @@ mkdir -p "$PREVIEW_ROOT/pr-105" && touch "$PREVIEW_ROOT/pr-105/last_up"
 [ -z "$(docker ps -aq -f name=aurora-pr-104-)" ] && [ "$(get "$(H 104)" /login)" = 404 ] \
   && ok "down remove containers e o host volta a 404" || fail "down 104"
 
+# Job cancelado: o ssh sem tty não manda sinal, e o up só morre ao escrever na sessão fechada.
+# stdout/stderr fechados simulam a sessão morta de forma determinística (a escrita falha na hora).
+preview up 106 local >&- 2>&- || true
+[ ! -e "$PREVIEW_ROOT/pr-106" ] && ok "up com a sessão fechada sai antes de criar estado" || fail "up órfão criou pr-106"
+
 [ "$(rc down 999)" = 0 ] && ok "down inexistente: exit 0" || fail "down 999"
 
 echo "PREVIEW TEST OK"
