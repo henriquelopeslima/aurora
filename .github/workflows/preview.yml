@@ -1,0 +1,83 @@
+name: Preview
+
+# Um ambiente por PR do fork em https://pr-<n>-aurora.henriquelopeslima.dev.br (infra/vm/preview.sh).
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+# Cancelar no meio é seguro: todo up é reset, e o down limpa um preview pela metade.
+concurrency:
+  group: preview-${{ github.event.number }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: southamerica-east1-docker.pkg.dev/aurora-513810/aurora
+  PR: ${{ github.event.number }}
+
+defaults:
+  run:
+    # Explícito para ganhar -o pipefail: o `ssh | tee` não pode mascarar o código de saída da VM.
+    shell: bash
+
+jobs:
+  preview:
+    name: ${{ github.event.action == 'closed' && 'Destroy preview' || 'Deploy preview' }}
+    # Só no fork pessoal e só com branch do próprio repo: PR vindo de fork não recebe token OIDC.
+    if: github.repository == 'henriquelopeslima/aurora' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+    steps:
+      - name: Checkout code
+        if: github.event.action != 'closed'
+        uses: actions/checkout@v7
+
+      - name: Authenticate to GCP (Workload Identity Federation)
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: aurora-513810
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SA }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v3
+
+      - name: Build and push images
+        if: github.event.action != 'closed'
+        run: |
+          gcloud auth configure-docker southamerica-east1-docker.pkg.dev --quiet
+          docker build -f docker/prod/Dockerfile --target preview -t "$REGISTRY/php-preview:$GITHUB_SHA" .
+          docker build -f docker/prod/Dockerfile --target nginx -t "$REGISTRY/nginx:$GITHUB_SHA" .
+          docker push "$REGISTRY/php-preview:$GITHUB_SHA"
+          docker push "$REGISTRY/nginx:$GITHUB_SHA"
+
+      - name: Deploy preview to the VM
+        id: up
+        if: github.event.action != 'closed'
+        run: |
+          rc=0
+          gcloud compute ssh aurora --zone southamerica-east1-a --tunnel-through-iap --quiet \
+            --command "sudo aurora-preview up $PR $GITHUB_SHA" | tee up.log || rc=$?
+          if [ "$rc" = 3 ]; then
+            echo "::error::Limite de previews atingido na VM: feche outro PR ou rode 'sudo aurora-preview down <pr>'."
+          fi
+          [ "$rc" = 0 ] || exit "$rc"
+          grep '^url=' up.log | tail -1 >> "$GITHUB_OUTPUT"
+
+      - name: Comment the preview URL on the PR
+        if: github.event.action != 'closed'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          URL: ${{ steps.up.outputs.url }}
+        run: |
+          gh pr comment "$PR" --edit-last --create-if-none \
+            --body "Preview: $URL — login via Cloudflare Access; banco recriado com fixtures a cada push."
+
+      - name: Destroy preview
+        if: github.event.action == 'closed'
+        run: |
+          gcloud compute ssh aurora --zone southamerica-east1-a --tunnel-through-iap --quiet \
+            --command "sudo aurora-preview down $PR"
