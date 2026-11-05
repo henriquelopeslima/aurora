@@ -88,4 +88,19 @@ Depois, alinhe o código: troque o disco em `vm.tf` (ou `tofu import` do disco r
 
 ## Destruir
 
-`tofu destroy` derruba tudo **menos** o disco de dados (`prevent_destroy`). Para apagar os dados também, remova o `prevent_destroy` em `vm.tf` de propósito e rode de novo. O bucket de state é manual.
+O `prevent_destroy` do disco de dados faz um `tofu destroy` simples **falhar inteiro**: é essa a trava. Para derrubar tudo mantendo os dados:
+
+```bash
+tofu destroy -target=google_compute_disk_resource_policy_attachment.daily  # solta a política de snapshot do disco
+tofu state rm google_compute_disk.data                                      # o disco sai do controle do tofu, mas continua existindo
+tofu destroy
+```
+
+Para subir de novo reaproveitando o disco:
+
+```bash
+tofu import google_compute_disk.data projects/aurora-513810/zones/southamerica-east1-a/disks/aurora-data
+tofu apply
+```
+
+Para apagar os dados também: remova o `prevent_destroy` em `vm.tf` de propósito e rode `tofu destroy`. Os snapshots automáticos sobrevivem ao disco (`KEEP_AUTO_SNAPSHOTS`) e expiram em 7 dias. O bucket de state é manual.
