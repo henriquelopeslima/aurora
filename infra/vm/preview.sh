@@ -77,13 +77,14 @@ cf_up() {
   # --resolve pelo IP do host de prod (mesma borda): evita o cache negativo do DNS do host recém-criado.
   local edge i
   edge=$(getent ahostsv4 "aurora.$DOMAIN" | awk 'NR == 1 {print $1}')
-  for i in $(seq 36); do
+  # Medido: de ~1 min a mais de 3 min (app recriado logo após um down). Segura o lock enquanto espera.
+  for i in $(seq 120); do
     case "$(curl -s -o /dev/null -w '%{redirect_url}' --resolve "$host:443:$edge" "https://$host/")" in
-      https://*.cloudflareaccess.com/*) return 0 ;;
+      https://*.cloudflareaccess.com/*) echo "Access ativo em $host após ~$(( (i - 1) * 5 ))s" >&2; return 0 ;;
     esac
     sleep 5
   done
-  echo "o Access não protegeu $host em 180s; o preview não subiu" >&2
+  echo "o Access não protegeu $host em 600s; o preview não subiu" >&2
   return 1
 }
 
