@@ -28,6 +28,8 @@ resource "google_monitoring_uptime_check_config" "app" {
       host       = var.domain
     }
   }
+
+  depends_on = [google_project_service.apis]
 }
 
 resource "google_monitoring_alert_policy" "app_down" {

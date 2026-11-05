@@ -8,6 +8,7 @@ resource "google_project_service" "apis" {
     "iap.googleapis.com",
     "logging.googleapis.com",
     "monitoring.googleapis.com",
+    "oslogin.googleapis.com",
     "secretmanager.googleapis.com",
     "sts.googleapis.com",
   ])

@@ -44,6 +44,8 @@ resource "google_compute_resource_policy" "daily" {
   name   = "aurora-daily-snapshot"
   region = var.region
 
+  depends_on = [google_project_service.apis]
+
   snapshot_schedule_policy {
     schedule {
       daily_schedule {
