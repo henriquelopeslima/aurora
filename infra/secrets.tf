@@ -33,8 +33,22 @@ locals {
   }
 }
 
+# Nomes estáticos: as chaves de local.secrets ficam desconhecidas no plan enquanto o
+# tunnel não existe (o token vem de um data source), e for_each exige chaves conhecidas.
+locals {
+  secret_names = toset([
+    "aurora-app-secret",
+    "aurora-postgres-password",
+    "aurora-mongo-password",
+    "aurora-mailer-dsn",
+    "aurora-tunnel-token",
+    "aurora-jwt-private-key",
+    "aurora-jwt-public-key",
+  ])
+}
+
 resource "google_secret_manager_secret" "app" {
-  for_each  = nonsensitive(toset(keys(local.secrets)))
+  for_each  = local.secret_names
   secret_id = each.value
 
   replication {
@@ -45,11 +59,11 @@ resource "google_secret_manager_secret" "app" {
 }
 
 resource "google_secret_manager_secret_version" "app" {
-  for_each    = google_secret_manager_secret.app
-  secret      = each.value.id
+  for_each    = local.secret_names
+  secret      = google_secret_manager_secret.app[each.key].id
   secret_data = local.secrets[each.key]
 }
 
 locals {
-  secret_ids = { for name, s in google_secret_manager_secret.app : name => s.id }
+  secret_ids = { for name in local.secret_names : name => google_secret_manager_secret.app[name].id }
 }
