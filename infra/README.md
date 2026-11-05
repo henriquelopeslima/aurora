@@ -81,6 +81,21 @@ sudo docker exec aurora-postgres-1 psql -U aurora -d aurora \
 - **Mudou `vm/compose.yaml` ou `vm/deploy.sh`:** `tofu apply` atualiza a metadata; vale no próximo deploy, sem reboot.
 - **Recriar a VM:** `tofu apply -replace=google_compute_instance.aurora`. Os dados ficam no disco `aurora-data`.
 
+## Previews
+
+Cada PR aberto **dentro do fork** sobe em `https://pr-<número>-aurora.henriquelopeslima.dev.br` (workflow `preview.yml`). O banco é recriado com fixtures a cada push, e o ambiente é destruído quando o PR fecha.
+
+- **Login:** primeiro o Cloudflare Access (código por e-mail, só para `preview_allowed_emails`), depois o app com um usuário das fixtures (ex.: `henriquelopeslima@example.com` / `Aurora@2024`).
+- **Na VM:**
+  - `sudo aurora-preview up <pr> <tag>` (a tag é o SHA do commit; precisa das imagens `php-preview` e `nginx` no registry);
+  - `sudo aurora-preview down <pr>`;
+  - `sudo aurora-preview gc` (destrói previews sem `up` há mais de 7 dias; também roda no início de cada `up`);
+  - `ls /opt/aurora/previews` lista os previews no ar.
+- **Exit 3 (limite de previews):** feche outro PR ou rode `down` num preview esquecido; o limite é `preview_max` (padrão 2, por causa da RAM).
+- **Primeiro `up` de um PR:** espera o Access valer na borda (até 10 min) antes de subir os containers, para o host nunca ficar sem login.
+- **Token:** `preview_cloudflare_token` no `terraform.tfvars` vai para o secret `aurora-preview-cf-token`; ele só mexe em DNS da zona e em apps do Access.
+- **Desligar na hora:** `gh workflow disable preview.yml -R henriquelopeslima/aurora`. Antes de reverter a infra dos previews, rode `down` em todo preview vivo: o DNS e o Access de cada PR ficam fora do tofu.
+
 ## Restaurar um snapshot
 
 ```bash
