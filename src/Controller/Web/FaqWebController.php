@@ -20,7 +20,7 @@ class FaqWebController extends AbstractWebController
     {
         $faqs = $this->faqService->list();
 
-        return $this->render('faq/faq.html.twig', [
+        return $this->render('faq/faqs.html.twig', [
             'faqs' => $faqs,
         ]);
     }
